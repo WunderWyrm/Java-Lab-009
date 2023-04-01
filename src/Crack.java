@@ -1,12 +1,19 @@
+/**
+ *
+ * @author Samuel Theiss
+ *
+ * @since Version 1.0
+ *
+ */
+
 import org.apache.commons.codec.digest.Crypt;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Scanner;
 import java.util.stream.Stream;
 
@@ -16,10 +23,43 @@ public class Crack {
 
     public Crack(String shadowFile, String dictionary) throws FileNotFoundException {
         this.dictionary = dictionary;
-        this.users = Crack.parseShadow(shadowFile);
+        try {
+            this.users = Crack.parseShadow(shadowFile);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void crack() throws FileNotFoundException {
+
+        BufferedReader reader = new BufferedReader( new FileReader( Path.of(this.dictionary).toFile() ) );
+
+        String tempWord = "";
+
+        while (true) {
+
+            try {
+                tempWord = reader.readLine();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            if (tempWord == null) {
+                break;
+            }
+
+            for (User element : this.users) {
+
+                if (element.getPassHash().contains("$") && element.getPassHash().equals(Crypt.crypt(tempWord, element.getPassHash()))) {
+
+                    System.out.printf("Found password %s for user %s\n", tempWord, element.getUsername());
+
+                }
+
+            }
+
+        }
+
     }
 
     public static int getLineCount(String path) {
@@ -30,10 +70,23 @@ public class Crack {
         return lineCount;
     }
 
-    public static User[] parseShadow(String shadowFile) throws FileNotFoundException {
+    public static User[] parseShadow(String shadowFile) throws IOException {
+
+        User[] userArray = new User[getLineCount(shadowFile)];
+        BufferedReader reader = new BufferedReader( new FileReader( Paths.get(shadowFile).toFile() ) );
+
+        for (int i = 0; i < getLineCount(shadowFile); i++) {
+            String[] tempArray = reader.readLine().split(":");
+
+            userArray[i] = new User(tempArray[0], tempArray[1]);
+        }
+
+        return userArray;
+
     }
 
     public static void main(String[] args) throws FileNotFoundException {
+
         Scanner sc = new Scanner(System.in);
         System.out.print("Type the path to your shadow file: ");
         String shadowPath = sc.nextLine();
